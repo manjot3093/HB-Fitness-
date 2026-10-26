@@ -5,3 +5,4 @@ android/
 ios/
 .env
 *.log
+push_to_github.bat
