@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    // Server-side domain gate: the token email must be verified and on the allowed domain.
+    function onDomain() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('(?i).+@hbplus[.]fit');
+    }
+    function isAdmin() {
+      return onDomain() && get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    match /users/{uid} {
+      allow read: if onDomain() && (request.auth.uid == uid || isAdmin());
+      // New users can only self-register as plain "user"
+      allow create: if onDomain() && request.auth.uid == uid
+        && request.resource.data.role == 'user'
+        && request.resource.data.email == request.auth.token.email;
+      // Users may only touch lastLoginAt; roles are changed by admins via console/Admin SDK
+      allow update: if onDomain() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt']);
+      allow delete: if false;
+    }
+  }
+}
