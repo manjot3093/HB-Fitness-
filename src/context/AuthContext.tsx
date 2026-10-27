@@ -111,8 +111,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await promptAsync();
       }
     } catch (e: any) {
+      console.error('Firebase Auth Error:', e);
       if (e?.code !== 'auth/popup-closed-by-user' && e?.code !== 'auth/cancelled-popup-request') {
-        setError('Sign-in failed. Check Firebase config or use the Demo Flows below.');
+        if (e?.code === 'auth/unauthorized-domain') {
+          setError('Domain not authorized: Please add your Netlify domain to Firebase Console > Authentication > Settings > Authorized domains.');
+        } else if (e?.code === 'auth/invalid-api-key' || !process.env.EXPO_PUBLIC_FIREBASE_API_KEY || process.env.EXPO_PUBLIC_FIREBASE_API_KEY === 'demo-api-key') {
+          setError('Firebase API key missing in build. On Netlify, go to Deploys > Trigger deploy > "Clear cache and deploy site".');
+        } else {
+          setError(e?.message || 'Sign-in failed. Check Firebase config or use the Demo Flows below.');
+        }
       }
       setSigningIn(false);
     }
